@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Make form inputs gray with white text */
+input, select, textarea {
+  background-color: #374151; /* Tailwind gray-700 */
+  color: #ffffff;
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Ensure placeholder text is slightly muted but readable on gray background */
+input::placeholder, textarea::placeholder {
+  color: rgba(255,255,255,0.65);
+}
+
