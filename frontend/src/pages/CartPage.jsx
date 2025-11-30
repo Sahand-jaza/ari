@@ -11,7 +11,8 @@ export default function CartPage({ cart, setCart, currentUser, setCurrentPage })
   React.useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('/api/config');
+        const API_BASE = import.meta.env.VITE_API_URL || '';
+        const r = await fetch(`${API_BASE}/api/config`);
         if (!r.ok) return;
         const j = await r.json();
         if (j && j.stripePublishableKey) setStripeKey(j.stripePublishableKey);
@@ -77,7 +78,8 @@ export default function CartPage({ cart, setCart, currentUser, setCurrentPage })
                       payment: payload.payment || null
                     };
 
-                    const res = await fetch('/api/orders', {
+                    const API_BASE = import.meta.env.VITE_API_URL || '';
+                    const res = await fetch(`${API_BASE}/api/orders`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(body)

@@ -160,7 +160,8 @@ export default function PaymentCard({ amount = 0, onPay, publishableKey = null, 
       try {
         // ask server for a PaymentIntent client secret
         const body = { user_id: currentUser?.id || null, items };
-        const r = await fetch('/api/create-payment-intent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const API_BASE = import.meta.env.VITE_API_URL || '';
+        const r = await fetch(`${API_BASE}/api/create-payment-intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const j = await r.json();
         if (!r.ok) { setProcessing(false); return setError(j.error || 'Failed to create payment intent'); }
 

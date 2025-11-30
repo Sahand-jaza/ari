@@ -16,13 +16,14 @@ export default function LoginPage({ handleLogin, setCurrentPage }) {
   }, []);
 
   const apiBase = '';
+  const API_BASE = import.meta.env.VITE_API_URL || '';
 
   const doSignup = async () => {
     setMessage('');
     if (!name || !email || !password) return setMessage('Please fill all fields');
     if (!/^[^@\s]+@gmail\.com$/i.test(email.trim())) return setMessage('Please provide a valid Gmail address');
     try {
-      const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name }) });
+      const res = await fetch(`${API_BASE}/api/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name }) });
       const data = await res.json();
       if (!res.ok) return setMessage(data.error || 'Registration failed');
       setMessage(data.message || 'Registered. Check your email for the verification code.');
@@ -34,7 +35,7 @@ export default function LoginPage({ handleLogin, setCurrentPage }) {
   const doVerify = async () => {
     setMessage('');
     try {
-      const res = await fetch('/api/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code }) });
+      const res = await fetch(`${API_BASE}/api/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code }) });
       const data = await res.json();
       if (!res.ok) return setMessage(data.error || 'Verification failed');
       setMessage('Email verified! You can now sign in.');
@@ -46,7 +47,7 @@ export default function LoginPage({ handleLogin, setCurrentPage }) {
   const resend = async () => {
     setMessage('');
     try {
-      const res = await fetch('/api/send-verification', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      const res = await fetch(`${API_BASE}/api/send-verification`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
       const data = await res.json();
       if (!res.ok) return setMessage(data.error || 'Failed to resend');
       setMessage(data.message || 'Verification code resent');

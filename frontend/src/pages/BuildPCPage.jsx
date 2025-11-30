@@ -7,7 +7,8 @@ export default function BuildPCPage({ products, pcBuild, setPcBuild, savePcBuild
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/build-discount');
+        const API_BASE = import.meta.env.VITE_API_URL || '';
+        const res = await fetch(`${API_BASE}/api/build-discount`);
         if (res.ok) {
           const data = await res.json();
           if (mounted) setDiscountCfg(data || { global: { itemCount: 3, percent: 20 }, perItem: {} });
