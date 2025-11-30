@@ -22,6 +22,15 @@ export default defineConfig({
     host: '0.0.0.0',
     port: process.env.PORT ? Number(process.env.PORT) : undefined,
     // Allowlist hosts for Vite preview. Set FRONTEND_HOST or VITE_ALLOWED_HOST in env if needed.
-    allowedHosts: [process.env.FRONTEND_HOST || process.env.VITE_ALLOWED_HOST || 'frontend-production-368d.up.railway.app']
+    // If VITE_ALLOW_ALL_HOSTS=true then allow all hosts (useful for preview environments)
+    allowedHosts: (process.env.VITE_ALLOW_ALL_HOSTS === 'true')
+      ? 'all'
+      : [
+        // explicit env overrides (can be comma-separated list)
+        ...(process.env.VITE_ALLOWED_HOST ? process.env.VITE_ALLOWED_HOST.split(',').map(s => s.trim()).filter(Boolean) : []),
+        process.env.FRONTEND_HOST,
+        // keep existing railway host as fallback
+        'frontend-production-368d.up.railway.app'
+      ].filter(Boolean)
   }
 })
