@@ -5,7 +5,7 @@ export default function HomePage({ products, setCurrentPage, wishlist, toggleWis
   return (
     <div className="space-y-16">
       <div className="bg-gradient-to-r from-blue-900 to-blue-800 rounded-3xl p-16 text-white" style={{ minHeight: '500px' }}>
-        <h1 className="text-5xl font-bold mb-6">Build Your Dream Setup</h1>
+        <h1 className="text-5xl font-bold mb-6">Build Your Dream Setupp</h1>
         <p className="text-xl mb-8">Premium computer components at unbeatable prices</p>
         <div className="flex gap-4">
           <button onClick={() => setCurrentPage('store')} className="bg-white text-blue-900 px-8 py-4 rounded-xl font-bold hover:bg-gray-100">Explore Store</button>
