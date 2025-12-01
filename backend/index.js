@@ -85,7 +85,7 @@ async function initDB() {
     const DB_HOST = process.env.DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || parsed.host || '127.0.0.1';
     const DB_PORT = process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (parsed.port ? parseInt(parsed.port) : 3306);
     const DB_USER = process.env.DB_USER || process.env.MYSQLUSER || process.env.MYSQL_USER || parsed.user || 'root';
-    const DB_PASSWORD = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD || parsed.password || '';
+    const DB_PASSWORD = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD || parsed.password || 'root';
     const DB_NAME = process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || parsed.database || 'aritechnology';
     
     const poolConfig = {
