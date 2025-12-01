@@ -1398,25 +1398,51 @@ app.listen(PORT, () => {
 // Helper: send verification email (best-effort). Uses nodemailer if SMTP env provided.
 async function sendVerificationEmail(toEmail, code) {
   const SMTP_HOST = process.env.SMTP_HOST;
+  const SMTP_USER = process.env.SMTP_USER;
+  const SMTP_PASS = process.env.SMTP_PASS;
+
+  console.log('DEBUG: Attempting to send email...');
+  console.log('DEBUG: SMTP_HOST present:', !!SMTP_HOST);
+  console.log('DEBUG: SMTP_USER present:', !!SMTP_USER);
+  console.log('DEBUG: SMTP_PASS present:', !!SMTP_PASS);
+
   if (!SMTP_HOST) {
     console.log(`Verification code for ${toEmail}: ${code} (SMTP not configured)`);
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
-  });
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
+    });
 
-  const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@example.com';
-  const info = await transporter.sendMail({
-    from,
-    to: toEmail,
-    subject: 'Your verification code',
-    text: `Your verification code for ARI TECHNOLOGY is: ${code}`,
-    html: `<p>Your verification code for <strong>ARI TECHNOLOGY</strong> is: <strong>${code}</strong></p>`
-  });
-  console.log('Verification email sent:', info && info.messageId ? info.messageId : '(no messageId)');
+    // Verify connection configuration
+    await new Promise((resolve, reject) => {
+      transporter.verify(function (error, success) {
+        if (error) {
+          console.error('DEBUG: SMTP Connection Error:', error);
+          reject(error);
+        } else {
+          console.log('DEBUG: SMTP Server is ready to take our messages');
+          resolve(success);
+        }
+      });
+    });
+
+    const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@example.com';
+    const info = await transporter.sendMail({
+      from,
+      to: toEmail,
+      subject: 'Your verification code',
+      text: `Your verification code for ARI TECHNOLOGY is: ${code}`,
+      html: `<p>Your verification code for <strong>ARI TECHNOLOGY</strong> is: <strong>${code}</strong></p>`
+    });
+    console.log('Verification email sent:', info && info.messageId ? info.messageId : '(no messageId)');
+  } catch (error) {
+    console.error('DEBUG: Failed to send email:', error);
+    // Don't rethrow, just log, so registration doesn't fail completely
+  }
 }
