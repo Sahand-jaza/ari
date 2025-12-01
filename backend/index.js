@@ -1411,12 +1411,18 @@ async function sendVerificationEmail(toEmail, code) {
     return;
   }
 
+  const port = Number(process.env.SMTP_PORT) || 587;
+  // Auto-detect secure: true for port 465, false for 587
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+
   try {
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
+      port: port,
+      secure: secure,
+      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      // Increase timeout
+      connectionTimeout: 10000
     });
 
     // Verify connection configuration
