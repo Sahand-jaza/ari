@@ -5,12 +5,17 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer'); // Added nodemailer
 // Stripe (optional) - only used when STRIPE_SECRET_KEY is set in env
 const StripeLib = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 require('dotenv').config();
+
+console.log('DEBUG: SMTP_HOST loaded as:', process.env.SMTP_HOST); // Debug log
+
 // Note: file uploads handled via JSON base64 payload to avoid extra deps
 
 const app = express();
+
 
 // Middleware
 app.use(cors());
@@ -87,7 +92,7 @@ async function initDB() {
     const DB_USER = process.env.DB_USER || process.env.MYSQLUSER || process.env.MYSQL_USER || parsed.user || 'root';
     const DB_PASSWORD = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD || parsed.password || 'root';
     const DB_NAME = process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || parsed.database || 'aritechnology';
-    
+
     const poolConfig = {
       host: DB_HOST,
       port: DB_PORT,
@@ -121,10 +126,10 @@ async function initDB() {
       }
       tempConn.release();
       // close temp pool
-      try { await tempPool.end(); } catch (e) {}
+      try { await tempPool.end(); } catch (e) { }
     } catch (err) {
       // If we cannot create the database, keep going — the next connection attempt will show a clearer error.
-      try { /* ignore */ } catch(e) {}
+      try { /* ignore */ } catch (e) { }
     }
 
     // Now create the real pool including the database name
@@ -252,7 +257,7 @@ async function createTables() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_active_dates (is_active, start_date, end_date)
     )`
-      ,`CREATE TABLE IF NOT EXISTS build_discounts (
+    , `CREATE TABLE IF NOT EXISTS build_discounts (
         id INT AUTO_INCREMENT PRIMARY KEY,
         global_item_count INT DEFAULT 0,
         global_percent DECIMAL(5,2) DEFAULT 0,
@@ -281,7 +286,7 @@ async function seedDatabase() {
   const connection = await pool.getConnection();
   try {
     const [users] = await connection.execute('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
-    
+
     if (users[0].count === 0) {
       const hashedPassword = await bcrypt.hash('ahmadf8808', 10);
       await connection.execute(
@@ -292,7 +297,7 @@ async function seedDatabase() {
     }
 
     const [products] = await connection.execute('SELECT COUNT(*) as count FROM products');
-    
+
     if (products[0].count === 0) {
       const productData = [
         {
@@ -305,7 +310,7 @@ async function seedDatabase() {
           rating: 4.8,
           reviews: 245,
           image_url: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=500&h=500&fit=crop",
-          specs: JSON.stringify({"cpu":"Intel i7-13700H","ram":"16GB DDR5","storage":"1TB NVMe SSD","gpu":"RTX 4060"})
+          specs: JSON.stringify({ "cpu": "Intel i7-13700H", "ram": "16GB DDR5", "storage": "1TB NVMe SSD", "gpu": "RTX 4060" })
         },
         {
           name: "UltraWide Monitor 34\"",
@@ -365,7 +370,7 @@ async function seedDatabase() {
           rating: 4.9,
           reviews: 178,
           image_url: "https://images.unsplash.com/photo-1555617981-dac3880eac6e?w=500&h=500&fit=crop",
-          specs: JSON.stringify({"socket":"LGA1700","cores":24,"threads":32})
+          specs: JSON.stringify({ "socket": "LGA1700", "cores": 24, "threads": 32 })
         },
         {
           name: "RTX 4090 Graphics Card",
@@ -377,7 +382,7 @@ async function seedDatabase() {
           rating: 4.8,
           reviews: 234,
           image_url: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=500&h=500&fit=crop",
-          specs: JSON.stringify({"vram":"24GB GDDR6X","power":"450W"})
+          specs: JSON.stringify({ "vram": "24GB GDDR6X", "power": "450W" })
         },
         {
           name: "DDR5 32GB RAM Kit",
@@ -389,7 +394,7 @@ async function seedDatabase() {
           rating: 4.7,
           reviews: 456,
           image_url: "https://images.unsplash.com/photo-1541336032412-2048a678540d?w=500&h=500&fit=crop",
-          specs: JSON.stringify({"type":"DDR5","speed":"6000MHz","capacity":"32GB"})
+          specs: JSON.stringify({ "type": "DDR5", "speed": "6000MHz", "capacity": "32GB" })
         },
         {
           name: "NVMe SSD 2TB",
@@ -413,7 +418,7 @@ async function seedDatabase() {
           rating: 4.6,
           reviews: 167,
           image_url: "https://images.unsplash.com/photo-1591370874773-6702e8f12fd8?w=500&h=500&fit=crop",
-          specs: JSON.stringify({"socket":"LGA1700","formFactor":"ATX","ramSlots":4})
+          specs: JSON.stringify({ "socket": "LGA1700", "formFactor": "ATX", "ramSlots": 4 })
         }
       ];
 
@@ -482,11 +487,11 @@ app.get('/api/products/:id', async (req, res) => {
     const connection = await pool.getConnection();
     const [products] = await connection.execute('SELECT id, name, category, brand, price, build_price, description, stock, rating, reviews, image_url, specs, created_at, updated_at FROM products WHERE id = ?', [req.params.id]);
     connection.release();
-    
+
     if (products.length === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    
+
     res.json(products[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -584,7 +589,7 @@ app.post('/api/offers', async (req, res) => {
       [title, description, discount_percentage, product_ids, start_date, end_date, is_active]
     );
     connection.release();
-    
+
     res.status(201).json({
       id: result.insertId,
       title, description, discount_percentage, product_ids, start_date, end_date, is_active
@@ -603,7 +608,7 @@ app.put('/api/offers/:id', async (req, res) => {
       [title, description, discount_percentage, product_ids, start_date, end_date, is_active, req.params.id]
     );
     connection.release();
-    
+
     res.json({ message: 'Offer updated successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -615,7 +620,7 @@ app.delete('/api/offers/:id', async (req, res) => {
     const connection = await pool.getConnection();
     await connection.execute('DELETE FROM offers WHERE id=?', [req.params.id]);
     connection.release();
-    
+
     res.json({ message: 'Offer deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -724,59 +729,59 @@ app.post('/api/orders', async (req, res) => {
     }
 
     // Payment token validation
-      if (!payment) {
-        await connection.rollback();
-        return res.status(400).json({ error: 'Missing payment information' });
-      }
+    if (!payment) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'Missing payment information' });
+    }
 
-      // If using Stripe, verify the PaymentIntent on the server
-      if (payment.method === 'stripe') {
-        if (!StripeLib) {
-          await connection.rollback();
-          return res.status(500).json({ error: 'Server payment gateway not configured' });
-        }
-        if (!payment.id) {
-          await connection.rollback();
-          return res.status(400).json({ error: 'Missing payment id' });
-        }
-        try {
-          const pi = await StripeLib.paymentIntents.retrieve(payment.id);
-          if (!pi) {
-            await connection.rollback();
-            return res.status(400).json({ error: 'Payment intent not found' });
-          }
-          // verify amount matches server total (in cents)
-          const amountCents = Math.round(serverTotal * 100);
-          if (Number(pi.amount) !== amountCents) {
-            await connection.rollback();
-            return res.status(400).json({ error: 'Payment amount mismatch', piAmount: pi.amount, expected: amountCents });
-          }
-          if (pi.status !== 'succeeded') {
-            await connection.rollback();
-            return res.status(400).json({ error: 'Payment not completed', status: pi.status });
-          }
-        } catch (e) {
-          await connection.rollback();
-          return res.status(400).json({ error: 'Failed to verify payment intent', details: e.message });
-        }
-      } else {
-        // Fallback simulated token behavior
-        if (!payment.token) {
-          await connection.rollback();
-          return res.status(400).json({ error: 'Missing payment token' });
-        }
-        const token = payment.token;
-        if (!token.startsWith('tok_sim_')) {
-          await connection.rollback();
-          return res.status(400).json({ error: 'Invalid or unverified payment token' });
-        }
-      }
-
-      // Amount validation
-      if (typeof req.body.amount === 'undefined' || Number(req.body.amount) <= 0) {
+    // If using Stripe, verify the PaymentIntent on the server
+    if (payment.method === 'stripe') {
+      if (!StripeLib) {
         await connection.rollback();
-        return res.status(400).json({ error: 'Invalid order amount' });
+        return res.status(500).json({ error: 'Server payment gateway not configured' });
       }
+      if (!payment.id) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Missing payment id' });
+      }
+      try {
+        const pi = await StripeLib.paymentIntents.retrieve(payment.id);
+        if (!pi) {
+          await connection.rollback();
+          return res.status(400).json({ error: 'Payment intent not found' });
+        }
+        // verify amount matches server total (in cents)
+        const amountCents = Math.round(serverTotal * 100);
+        if (Number(pi.amount) !== amountCents) {
+          await connection.rollback();
+          return res.status(400).json({ error: 'Payment amount mismatch', piAmount: pi.amount, expected: amountCents });
+        }
+        if (pi.status !== 'succeeded') {
+          await connection.rollback();
+          return res.status(400).json({ error: 'Payment not completed', status: pi.status });
+        }
+      } catch (e) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Failed to verify payment intent', details: e.message });
+      }
+    } else {
+      // Fallback simulated token behavior
+      if (!payment.token) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Missing payment token' });
+      }
+      const token = payment.token;
+      if (!token.startsWith('tok_sim_')) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Invalid or unverified payment token' });
+      }
+    }
+
+    // Amount validation
+    if (typeof req.body.amount === 'undefined' || Number(req.body.amount) <= 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'Invalid order amount' });
+    }
 
     // Amount validation
     if (typeof req.body.amount === 'undefined' || Number(req.body.amount) <= 0) {
@@ -839,7 +844,7 @@ app.post('/api/reviews', async (req, res) => {
   try {
     const { product_id, user_id, rating, comment } = req.body;
     const connection = await pool.getConnection();
-    
+
     await connection.execute(
       'INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?, ?, ?, ?)',
       [product_id, user_id, rating, comment]
@@ -1069,7 +1074,7 @@ async function readBuildDiscountFromDB() {
       try { perItem = r.per_item ? JSON.parse(typeof r.per_item === 'string' ? r.per_item : JSON.stringify(r.per_item)) : {}; } catch (e) { perItem = r.per_item || {}; }
       return { global: { itemCount: Number(r.global_item_count) || 0, percent: Number(r.global_percent) || 0 }, perItem };
     } catch (e) {
-      try { conn.release(); } catch(_) {}
+      try { conn.release(); } catch (_) { }
       console.warn('Failed to read build_discounts from DB:', e.message);
       return readBuildDiscount();
     }
@@ -1106,7 +1111,7 @@ app.post('/api/build-discount', async (req, res) => {
           await conn.execute('INSERT INTO build_discounts (global_item_count, global_percent, per_item) VALUES (?, ?, ?)', [Number(cfg.global.itemCount) || 0, Number(cfg.global.percent) || 0, perItemJson]);
           conn.release();
         } catch (e) {
-          try { conn.release(); } catch(_) {}
+          try { conn.release(); } catch (_) { }
           console.warn('Failed to write build_discounts to DB:', e.message);
           // fallback to file below
           if (!fs.existsSync(path.dirname(buildDiscountFile))) fs.mkdirSync(path.dirname(buildDiscountFile), { recursive: true });
@@ -1166,7 +1171,7 @@ async function importLocalBuilds() {
       fs.writeFileSync(file, JSON.stringify(remaining, null, 2), 'utf8');
     } else {
       // all imported, remove file
-      try { fs.unlinkSync(file); } catch (e) {}
+      try { fs.unlinkSync(file); } catch (e) { }
     }
   } catch (e) {
     console.warn('Failed to update local build file after import:', e.message);
@@ -1218,7 +1223,7 @@ app.post('/api/register', async (req, res) => {
         console.warn('Failed to send verification email:', e.message);
       }
 
-      res.status(201).json({ message: 'User registered successfully. A verification code was sent to your email.' , test_code: process.env.SMTP_HOST ? undefined : verificationCode});
+      res.status(201).json({ message: 'User registered successfully. A verification code was sent to your email.', test_code: process.env.SMTP_HOST ? undefined : verificationCode });
     } finally {
       connection.release();
     }
@@ -1333,12 +1338,12 @@ app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const connection = await pool.getConnection();
-    
+
     const [users] = await connection.execute(
       'SELECT id, email, password, name, verified, role FROM users WHERE email = ?',
       [email]
     );
-    
+
     if (users.length === 0) {
       connection.release();
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -1390,15 +1395,13 @@ app.listen(PORT, () => {
 });
 
 // Helper: send verification email (best-effort). Uses nodemailer if SMTP env provided.
+// Helper: send verification email (best-effort). Uses nodemailer if SMTP env provided.
 async function sendVerificationEmail(toEmail, code) {
   const SMTP_HOST = process.env.SMTP_HOST;
   if (!SMTP_HOST) {
     console.log(`Verification code for ${toEmail}: ${code} (SMTP not configured)`);
     return;
   }
-  // Lazy require nodemailer to avoid hard dependency in demo mode
-  let nodemailer;
-  try { nodemailer = require('nodemailer'); } catch (e) { console.warn('nodemailer not installed, cannot send email'); console.log(`Verification code for ${toEmail}: ${code}`); return; }
 
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
