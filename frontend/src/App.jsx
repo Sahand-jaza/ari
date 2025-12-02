@@ -37,6 +37,10 @@ const ARITechnologyStore = () => {
 
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+  useEffect(() => {
+    console.log('Frontend configured with API_BASE:', API_BASE);
+  }, []);
+
   const handleLogin = (email, password) => {
     // Attempt server-side login
     (async () => {

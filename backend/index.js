@@ -1374,25 +1374,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  const dbStatus = pool ? 'connected' : 'demo mode (no database)';
-  res.json({ status: 'OK', message: 'API is healthy', database: dbStatus });
-});
 
-// Start server
-const PORT = process.env.PORT || 5000;
-
-// Initialize DB without blocking server startup
-initDB().catch(err => {
-  console.warn('DB init completed with warnings (see above)');
-});
-
-app.listen(PORT, () => {
-  console.log(`\n✓ Server running on http://localhost:${PORT}`);
-  console.log(`✓ Frontend running on http://localhost:3000`);
-  console.log(`✓ Database connection: ${pool ? 'Active' : 'Demo mode (local data only)'}\n`);
-});
 
 // Helper: send verification email (best-effort). Uses nodemailer if SMTP env provided.
 // Helper: send verification email (best-effort). Uses nodemailer if SMTP env provided.
@@ -1422,7 +1404,12 @@ async function sendVerificationEmail(toEmail, code) {
       secure: secure,
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
       // Increase timeout
-      connectionTimeout: 10000
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 60000,
+      socketTimeout: 60000,
+      // Force IPv4 to avoid IPv6 connectivity issues
+      family: 4,
+      dnsTimeout: 60000
     });
 
     // Verify connection configuration
@@ -1452,3 +1439,61 @@ async function sendVerificationEmail(toEmail, code) {
     // Don't rethrow, just log, so registration doesn't fail completely
   }
 }
+
+// ============= HEALTH & DEBUG HANDLERS =============
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const status = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      db_connected: !!pool,
+      product_count: 0
+    };
+
+    if (pool) {
+      try {
+        const connection = await pool.getConnection();
+        const [rows] = await connection.execute('SELECT COUNT(*) as count FROM products');
+        connection.release();
+        status.product_count = rows[0].count;
+      } catch (e) {
+        status.db_error = e.message;
+      }
+    } else {
+      status.product_count = demoProducts.length;
+      status.mode = 'demo (no db)';
+    }
+
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/debug/seed', async (req, res) => {
+  try {
+    if (!pool) return res.status(400).json({ error: 'Cannot seed in demo mode (no DB)' });
+
+    await seedDatabase();
+
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute('SELECT COUNT(*) as count FROM products');
+    connection.release();
+
+    res.json({ message: 'Database seeding triggered', products_count: rows[0].count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Initialize DB on start
+initDB();
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`\n✓ Server running on http://localhost:${PORT}`);
+  console.log(`✓ Frontend running on http://localhost:3000`);
+  console.log(`✓ Database connection: ${pool ? 'Active' : 'Demo mode (local data only)'}\n`);
+});
